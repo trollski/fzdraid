@@ -887,7 +887,8 @@ const defaults = () => ({
 });
 let S;
 try { S = Object.assign(defaults(), JSON.parse(localStorage.getItem(KEY) || '{}')); } catch { S = defaults(); }
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
+let wiping = false; /* set by a reset so the pagehide save during the reload cannot write the old state back */
+const save = () => { if (wiping) return; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
 
 /* ---------- gear ---------- */
 const SLOTS = ['boots', 'legs', 'top', 'hat', 'accessory'];
@@ -1193,7 +1194,7 @@ let curView = 'raid', bossDead = false;
   try { b.hidden = !localStorage.getItem(KEY); } catch { b.hidden = true; }
   b.addEventListener('click', () => {
     if (!armed) { armed = true; b.textContent = 'Tryck igen för att radera allt'; b.style.opacity = 1; clearTimeout(t); t = setTimeout(() => { armed = false; b.textContent = 'Börja om från början'; b.style.opacity = ''; }, 3000); return; }
-    try { localStorage.removeItem(KEY); } catch {} location.reload();
+    wiping = true; try { localStorage.removeItem(KEY); } catch {} location.reload();
   }); }
 /* badges. Raid and gear blink on events until you visit the tab. Skatter and its two sub-tabs blink on state instead:
    whenever a route chest is openable, or a challenge chest is ready to open or free to start, until you look at that sub-tab. */
@@ -2271,7 +2272,7 @@ function dbgAct(act, btn) {
     case 'camdone': if (!camRun) $('camBtn').click(); setTimeout(() => camLoopFinish && camLoopFinish(), 120); break;
     case 'town': S.bossHp = Math.max(0, S.bossHp - 1000); log('Stadsanfall', 1000); render(); save(); break;
     case 'kill': hit(S.bossHp, 'debug-kill', true); render(); save(); break;
-    case 'reset': try { localStorage.removeItem(KEY); } catch {} location.reload(); break;
+    case 'reset': wiping = true; try { localStorage.removeItem(KEY); } catch {} location.reload(); break;
   }
   dbgState();
 }
