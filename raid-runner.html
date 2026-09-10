@@ -705,6 +705,15 @@ const AC = window.AudioContext || window.webkitAudioContext;
 let actx = null, muted = false;
 try { muted = localStorage.getItem('fuzed-mute') === '1'; } catch {}
 function ac() { if (!AC) return null; try { if (!actx) actx = new AC(); if (actx.state === 'suspended' || actx.state === 'interrupted') actx.resume(); } catch { return null; } return actx; }
+/* run fn as soon as the context is actually running: resume() is async and on mobile the first tap only unlocks it, so a sound fired in the same handler would be dropped */
+function whenAudioReady(fn) {
+  const c = ac(); if (!c) return;
+  if (c.state === 'running') return fn();
+  let done = false; const go = () => { if (!done) { done = true; fn(); } };
+  try { const p = c.resume(); if (p && p.then) p.then(go); } catch {}
+  c.addEventListener('statechange', () => { if (c.state === 'running') go(); }, { once: true });
+  setTimeout(() => { if (c.state === 'running') go(); }, 250);
+}
 /* iOS suspends audio when the tab is backgrounded or a call comes in; resume on the next touch and when the page returns */
 document.addEventListener('touchend', () => ac(), { passive: true });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) ac(); });
@@ -1175,7 +1184,7 @@ document.documentElement.lang = 'sv';
 const NAV = {}; document.querySelectorAll('nav button').forEach(b => NAV[b.dataset.v] = b);
 let curView = 'raid', bossDead = false;
 /* splash: stays until Let's go is pressed, then fades into the raid */
-{ const sp = $('splash'); $('splashGo').addEventListener('click', () => { sfx.begin(); sp.classList.add('gone'); NAV.raid.click(); setTimeout(fitBossName, 520); /* the troll notices you a second after the splash */ setTimeout(() => { if (S.bossHp > 0) { setMood('mad', 2400); setAct('flinch', 350); sfx.angry(); } }, 1000); }); }
+{ const sp = $('splash'); $('splashGo').addEventListener('click', () => { whenAudioReady(sfx.begin); sp.classList.add('gone'); NAV.raid.click(); setTimeout(fitBossName, 520); /* the troll notices you a second after the splash */ setTimeout(() => { if (S.bossHp > 0) { setMood('mad', 2400); setAct('flinch', 350); sfx.angry(); } }, 1000); }); }
 /* badges. Raid and gear blink on events until you visit the tab. Skatter and its two sub-tabs blink on state instead:
    whenever a route chest is openable, or a challenge chest is ready to open or free to start, until you look at that sub-tab. */
 const lootAttention = () => {
