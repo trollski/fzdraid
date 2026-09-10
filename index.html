@@ -1337,7 +1337,7 @@ function onMotion(e) {
   }
   if (freezeMode) {
     /* any real motion beyond sensor noise breaks the freeze; the threshold is generous so a steady hand passes */
-    if (Math.abs(hp) > 2.2) freezeFail();
+    if (Math.abs(hp) > 1.2) freezeFail();
     return;
   }
   if (!above && hpSm > 1.3) above = true;
