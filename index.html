@@ -574,7 +574,6 @@
         <h2 id="routeTitle">Kvarnholmskistor</h2>
         <div class="seg routes" id="routes"><button data-r="kvarnholmen" class="on">Kvarnholmen</button><button data-r="henriksdal">Henriksdal</button><button data-r="sodermalm">Södermalm</button></div>
         <div id="chests" class="stack" style="gap:10px"></div>
-        <div class="note" id="routeNote"></div>
       </div>
       <div id="lootChal" class="stack" style="gap:14px" hidden>
         <h2>Utmaningskistor</h2>
@@ -1682,7 +1681,7 @@ setInterval(() => { if (curView === 'loot') { renderChests(); renderChalChests()
 function renderChests() {
   const box = $('chests');
   renderLootTabs();
-  $('routeTitle').textContent = ROUTES[S.route].title; $('routeNote').textContent = ROUTES[S.route].note;
+  $('routeTitle').textContent = ROUTES[S.route].title;
   document.querySelectorAll('#routes button').forEach(b => b.classList.toggle('on', b.dataset.r === S.route));
   const now = Date.now();
   /* rebuild the cards only when something they show has changed, so the Öppna pulse is not restarted by every step render */
