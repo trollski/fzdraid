@@ -22,7 +22,7 @@
   body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.4;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
   button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
   /* iOS: no double-tap zoom, no text selection on tap, no rubber-band on the frame */
-  .app,.app *{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+  .app,.app *{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
   .app{touch-action:pan-y}
   button:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
   .num{font-variant-numeric:tabular-nums}
@@ -127,7 +127,7 @@
   .boss > .float{z-index:5}
   /* full-viewport effect layer, last in the DOM and fixed, so nothing in the phone frame can paint over it */
   .fxfull{position:fixed;left:0;top:0;width:100vw;height:100vh;height:100dvh;pointer-events:none;z-index:2147483000}
-  .boss canvas#bossCanvas{cursor:pointer}
+  .boss canvas#bossCanvas{cursor:pointer;-webkit-tap-highlight-color:transparent;outline:none}
   .hp{height:14px;background:var(--s3);border-radius:7px;overflow:hidden;margin-top:10px}
   .hp i{display:block;height:100%;background:linear-gradient(90deg,var(--boss),var(--boss-hi));border-radius:7px;transition:width .4s}
   .hpmeta{display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--mute);margin-top:6px}
@@ -443,8 +443,8 @@
   .meter i{display:block;height:100%;width:0;background:var(--lime);border-radius:6px;transition:width .15s}
   .meter.energy{position:relative;overflow:visible}
   .meter.energy i{background:linear-gradient(90deg,var(--red),var(--gold),var(--lime))}
-  .meter.energy::after{content:'';position:absolute;left:60%;top:-4px;bottom:-4px;width:3px;background:#fff;border-radius:2px;box-shadow:0 0 6px rgba(255,255,255,.8)}
-  .meter.energy .lbl{position:absolute;left:60%;top:-16px;transform:translateX(-50%);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:#fff;font-weight:600;white-space:nowrap}
+  .meter.energy::after{content:'';position:absolute;left:50%;top:-4px;bottom:-4px;width:3px;background:#fff;border-radius:2px;box-shadow:0 0 6px rgba(255,255,255,.8)}
+  .meter.energy .lbl{position:absolute;left:50%;top:-16px;transform:translateX(-50%);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:#fff;font-weight:600;white-space:nowrap}
   .bigcount{font-family:var(--disp);font-weight:900;font-stretch:125%;font-size:72px;line-height:1;text-align:center}
   .bigcount small{display:block;font-family:var(--body);font-weight:600;font-stretch:100%;font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--mute);margin-top:6px}
   .done{color:var(--lime)}
@@ -598,10 +598,10 @@
           <button class="btn ghost" id="freezeBtn">Starta frysläge</button>
         </div>
         <div class="chalpanel" id="panel-stairs" hidden>
-          <div class="row"><h3>Spring upp · 10 höjdmeter</h3><span class="hint">Accelerometer</span></div>
-          <div class="bigcount num" id="stairsCount">0<small>höjdmeter · spring uppför trappan, räknas bara i löptakt</small></div>
+          <div class="row"><h3>Löprush · 15 s</h3><span class="hint">Accelerometer</span></div>
+          <div class="bigcount num" id="stairsCount">15<small>sekunder kvar · börja springa så startar klockan</small></div>
           <div class="meter"><i id="stairsBar"></i></div>
-          <button class="btn ghost" id="stairsBtn">Starta trappsprinten</button>
+          <button class="btn ghost" id="stairsBtn">Starta löprushen</button>
         </div>
         <div class="chalpanel" id="panel-cam" hidden>
           <div class="row"><h3>Rör på dig · 20 s</h3><span class="hint">Kamera</span></div>
@@ -685,7 +685,7 @@
     <button data-act="shake">Skaka mobilen <span>filtreras</span></button>
     <button data-act="freezedone">Frysläge <span>klar</span></button>
     <button data-act="freezebreak">Rör dig i frysläge <span>misslyckas</span></button>
-    <button data-act="stairsdone">Trappsprint <span>klar</span></button>
+    <button data-act="stairsdone">Löprush <span>klar</span></button>
   </div>
   <div class="grp"><div class="eyebrow">Kamera</div>
     <button data-act="camhi" class="hold">Mycket rörelse</button>
@@ -1306,7 +1306,7 @@ const cadence = () => { const now = performance.now(); while (stepTimes.length &
 let gLow = 9.81, hpSm = 0, above = false, lastStep = 0, lastJump = 0, jumpMode = false, jumps = 0, sensorOn = false;
 /* jump detector: a real jump is a dip toward weightlessness (in the air) followed by a landing spike.
    Counting on the spike alone gives two per jump (takeoff push + landing), so we wait for the dip first. */
-let airborne = false, airSince = 0, stepPeak = 0;
+let airborne = false, airSince = 0;
 function onMotion(e) {
   const a = e.accelerationIncludingGravity; if (!a || a.x == null) return;
   const mag = Math.hypot(a.x, a.y, a.z);
@@ -1326,23 +1326,6 @@ function onMotion(e) {
   if (freezeMode) {
     /* any real motion beyond sensor noise breaks the freeze; the threshold is generous so a steady hand passes */
     if (Math.abs(hp) > 2.2) freezeFail();
-    return;
-  }
-  if (stairsMode) {
-    /* prototype: no barometer in the browser. A step only counts as climb when it is a hard landing (stair or hill push-off, peak well above a walking step)
-       and the cadence is a run (> 150 / min). Walking on the flat still counts as steps but adds nothing to the climb. */
-    if (!above && hpSm > 1.3) { above = true; stepPeak = 0; }
-    if (above) stepPeak = Math.max(stepPeak, hpSm);
-    if (above && hpSm < 0.3) {
-      above = false;
-      if (now - lastStep > 280 && now - lastStep < 2000) {
-        stepTimes.push(now); addStep(1);
-        const running = cadence() > 150, hard = stepPeak > 3.2;
-        if (running && hard) { climbed += 0.17; stairsTick(); }
-        else if (climbed > 0 && now - lastClimb > 1500) { $('stairsCount').lastChild.textContent = running ? 'för platt · hitta en trappa eller backe' : 'för långsamt · spring!'; }
-      }
-      lastStep = now;
-    }
     return;
   }
   if (!above && hpSm > 1.3) above = true;
@@ -1491,28 +1474,39 @@ $('freezeBtn').addEventListener('click', () => {
   }, 100);
 });
 
-/* ---------- stairs challenge: climb 10 m of stairs or hill without stopping ---------- */
-let stairsMode = false, climbed = 0, stairsIv = null, lastClimb = 0;
+/* ---------- run rush: keep a running cadence for 15 s straight. Steps keep counting as usual; the timer only runs while the last few seconds of steps read as a run ---------- */
+const RUSH_SECS = 15, RUSH_CADENCE = 140; /* steps per minute over the trailing window that counts as running */
+let stairsMode = false, rushLeft = RUSH_SECS, stairsIv = null, rushStarted = false;
 function stairsTick() {
-  $('stairsCount').firstChild.textContent = climbed.toFixed(1); $('stairsBar').style.width = Math.min(100, climbed / 10 * 100) + '%';
-  lastClimb = performance.now();
-  if (climbed >= 10) finishChallenge('stairs');
+  $('stairsCount').firstChild.textContent = Math.ceil(rushLeft); $('stairsBar').style.width = ((RUSH_SECS - rushLeft) / RUSH_SECS * 100) + '%';
+  if (rushLeft <= 0) finishChallenge('stairs');
 }
+/* cadence over the last 5 s only, so the meter reacts within a couple of strides when you start or stop */
+const recentCadence = () => { const now = performance.now(); let n = 0; for (let i = stepTimes.length - 1; i >= 0 && now - stepTimes[i] <= 5000; i--) n++; return n * 12; };
 $('stairsBtn').addEventListener('click', () => {
-  if (stairsMode) { stairsMode = false; clearInterval(stairsIv); $('stairsBtn').textContent = 'Starta trappsprinten'; return; }
+  if (stairsMode) { stairsMode = false; clearInterval(stairsIv); $('stairsBtn').textContent = 'Starta löprushen'; return; }
   if (!sensorOn && !simulate) { sfx.error(); toast('Gå med i raiden på Raid-fliken först'); return; }
-  climbed = 0; stairsMode = true; stairsTick(); $('stairsCount').lastChild.textContent = 'höjdmeter · spring uppför trappan, räknas bara i löptakt'; $('stairsBtn').textContent = 'Avbryt';
-  /* stopping for more than 4 s resets the climb: the sprint has to be in one go */
+  rushLeft = RUSH_SECS; rushStarted = false; stairsMode = true; stairsTick(); $('stairsCount').lastChild.textContent = 'sekunder kvar · börja springa så startar klockan'; $('stairsBtn').textContent = 'Avbryt';
+  let last = performance.now();
   stairsIv = setInterval(() => {
     if (!stairsMode) return clearInterval(stairsIv);
-    if (simulate) { climbed += 0.5; stairsTick(); return; }
-    if (climbed > 0 && performance.now() - lastClimb > 4000) { climbed = 0; stairsTick(); $('stairsCount').lastChild.textContent = 'du stannade · börja om från botten'; sfx.error(); }
-  }, 400);
+    const now = performance.now(), dt = (now - last) / 1000; last = now;
+    const running = simulate || recentCadence() >= RUSH_CADENCE;
+    if (running) {
+      if (!rushStarted) { rushStarted = true; sfx.jump(); }
+      const before = Math.ceil(rushLeft); rushLeft = Math.max(0, rushLeft - dt); if (Math.ceil(rushLeft) !== before && rushLeft > 0) sfx.jump();
+      $('stairsCount').lastChild.textContent = 'sekunder kvar · håll tempot!'; stairsTick();
+    } else if (rushStarted && rushLeft < RUSH_SECS) {
+      /* dropping below running pace drains the clock back toward the start, so a rush has to be one continuous run */
+      rushLeft = Math.min(RUSH_SECS, rushLeft + dt * 1.5); stairsTick();
+      $('stairsCount').lastChild.textContent = 'för långsamt · spring så räknas tiden';
+    }
+  }, 200);
 });
 
 /* ---------- camera challenge ---------- */
 let camStream = null, camRun = false, camForce = null, camLoopFinish = null;
-const CAM_SECS = 20, CAM_BAR = 0.6; /* seconds over the line to clear it, and where the line sits on the energy meter */
+const CAM_SECS = 20, CAM_BAR = 0.5; /* seconds over the line to clear it, and where the line sits on the energy meter */
 $('camBtn').addEventListener('click', async () => {
   if (camRun) { stopCam(); return; }
   try {
@@ -1573,7 +1567,7 @@ function finishChallenge(kind) {
   chalOpen = null;
   jumpMode = false; $('jumpBtn').textContent = 'Starta hopputmaning';
   freezeMode = false; $('freezeBtn').textContent = 'Starta frysläge'; clearInterval(freezeIv);
-  stairsMode = false; $('stairsBtn').textContent = 'Starta trappsprinten'; clearInterval(stairsIv);
+  stairsMode = false; $('stairsBtn').textContent = 'Starta löprushen'; clearInterval(stairsIv);
   if (navigator.vibrate) navigator.vibrate([60, 40, 120]);
   if (kind === 'jump') { S.jumpsDone = true; $('jumpCount').classList.add('done'); } else if (kind === 'cam') S.camDone = true;
   sfx.goal(); fxGoal();
@@ -1740,7 +1734,7 @@ const CHAL = {
   /* challenge chests give a special attack plus rörelsepoäng, no gear: pts scales with rarity */
   jump:   { name: 'Hopputmaning', tier: 'common', cd: 10 * 60000, how: 'Hoppa 10 gånger', sp: 1, pts: 15 },
   freeze: { name: 'Frysläge', tier: 'uncommon', cd: 15 * 60000, how: 'Stå blixtstilla i 10 s', sp: 1, pts: 40 },
-  stairs: { name: 'Trappsprinten', tier: 'rare', cd: 20 * 60000, how: 'Spring uppför 10 höjdmeter', sp: 2, pts: 60 },
+  stairs: { name: 'Löprushen', tier: 'rare', cd: 20 * 60000, how: 'Spring i 15 sekunder i sträck', sp: 2, pts: 60 },
   cam:  { name: 'Rörelseutmaning', tier: 'epic', cd: 30 * 60000, how: 'Håll energin över strecket i 20 s', sp: 2, pts: 75 },
   boss: { name: 'Bossutmaning', tier: 'legendary', cd: 0, how: 'Besegra 3 bossar', sp: 3, pts: 200, need: 3 },
 };
@@ -2247,7 +2241,7 @@ function dbgAct(act, btn) {
     case 'shake': setAct('shiver', 500); sfx.error(); toast('Skakning ignorerad · kadensfilter'); break;
     case 'freezedone': if (!freezeMode) $('freezeBtn').click(); freezeLeft = 0.3; break;
     case 'freezebreak': if (!freezeMode) { sfx.error(); toast('Starta frysläget under Skattkistor · Utmaningar först'); } else freezeFail(); break;
-    case 'stairsdone': if (!stairsMode) $('stairsBtn').click(); climbed = 10; stairsTick(); break;
+    case 'stairsdone': if (!stairsMode) $('stairsBtn').click(); rushLeft = 0; stairsTick(); break;
     case 'camhi': case 'camlo': {
       const want = act.slice(3); camForce = camForce === want ? null : want;
       camButtons().forEach(b => holdToggle(b, camForce && b.dataset.act === 'cam' + camForce));
