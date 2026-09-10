@@ -70,6 +70,9 @@
   .splash .sub{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.18em;opacity:.7;animation:splashSub .8s ease .2s both}
   /* permissions note: small print pinned near the bottom of the splash */
   .splash .fine{margin:22px 24px 0;font-size:11px;line-height:1.5;text-align:center;opacity:.6;animation:splashSub .8s ease .5s both}
+  /* reset link: only shown when there is a saved game, sits under the fine print as a quiet text button */
+  .splash .splash-reset{margin-top:14px;padding:8px 14px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--lime-ink);opacity:.55;text-decoration:underline;text-underline-offset:3px;animation:splashSub .8s ease .7s both}
+  .splash .splash-reset:active{opacity:1}
   @keyframes splashIn{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
   @keyframes splashSub{from{opacity:0;transform:translateY(6px)}to{opacity:.7;transform:none}}
   @media (prefers-reduced-motion:reduce){.splash .mark,.splash .sub,.splash .fine,.splash .btn.go,.splash .btn.go::before{animation:none}}
@@ -509,7 +512,7 @@
 
 <div class="stage" id="stage">
 <div class="app">
-  <div class="splash" id="splash"><div class="mark">FZD</div><div class="sub">Fuzed Raid prototyp 1.0</div><button class="btn go" id="splashGo">Låt oss gå!</button><div class="fine">Appen frågar om rörelse, plats och kamera när du går med i raiden.<br>Acceptera alla tre för att få full upplevelse.</div></div>
+  <div class="splash" id="splash"><div class="mark">FZD</div><div class="sub">Fuzed Raid prototyp 1.0</div><button class="btn go" id="splashGo">Låt oss gå!</button><div class="fine">Appen frågar om rörelse, plats och kamera när du går med i raiden.<br>Acceptera alla tre för att få full upplevelse.</div><button class="splash-reset" id="splashReset" hidden>Börja om från början</button></div>
   <header>
     <div class="logo">FUZED <b>RAID</b></div>
     <div class="hdr-r">
@@ -1185,6 +1188,13 @@ const NAV = {}; document.querySelectorAll('nav button').forEach(b => NAV[b.datas
 let curView = 'raid', bossDead = false;
 /* splash: stays until Let's go is pressed, then fades into the raid */
 { const sp = $('splash'); $('splashGo').addEventListener('click', () => { whenAudioReady(sfx.begin); sp.classList.add('gone'); NAV.raid.click(); setTimeout(fitBossName, 520); /* the troll notices you a second after the splash */ setTimeout(() => { if (S.bossHp > 0) { setMood('mad', 2400); setAct('flinch', 350); sfx.angry(); } }, 1000); }); }
+/* reset from the splash: two taps so a stray touch cannot wipe a test run */
+{ const b = $('splashReset'); let armed = false, t = null;
+  try { b.hidden = !localStorage.getItem(KEY); } catch { b.hidden = true; }
+  b.addEventListener('click', () => {
+    if (!armed) { armed = true; b.textContent = 'Tryck igen för att radera allt'; b.style.opacity = 1; clearTimeout(t); t = setTimeout(() => { armed = false; b.textContent = 'Börja om från början'; b.style.opacity = ''; }, 3000); return; }
+    try { localStorage.removeItem(KEY); } catch {} location.reload();
+  }); }
 /* badges. Raid and gear blink on events until you visit the tab. Skatter and its two sub-tabs blink on state instead:
    whenever a route chest is openable, or a challenge chest is ready to open or free to start, until you look at that sub-tab. */
 const lootAttention = () => {
